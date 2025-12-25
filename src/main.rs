@@ -13,7 +13,10 @@ use poise::serenity_prelude::{ExecuteWebhook, Http, Webhook};
 use serde::Deserialize;
 
 use axum::routing::post;
-use sqlx::{Pool, Sqlite, SqlitePool};
+use sqlx::{
+    Pool, Postgres,
+    postgres::{PgConnectOptions, PgPoolOptions},
+};
 use tokio::signal;
 
 pub type BoxErr = Box<dyn Error + Send + Sync + 'static>;
@@ -21,7 +24,7 @@ pub type BoxErr = Box<dyn Error + Send + Sync + 'static>;
 #[derive(Clone)]
 pub struct ServerState {
     pub webhook_url: String,
-    pub pool: Pool<Sqlite>,
+    pub pool: Pool<Postgres>,
 }
 
 #[tokio::main]
@@ -33,12 +36,38 @@ async fn main() -> Result<(), BoxErr> {
         .expect("failed to install ring as rustls crypto provider");
 
     println!("Connecting to database...");
-    let db_url =
-        &env::var("DATABASE_URL").inspect_err(|_e| println!("failed to load database url"))?;
 
-    let pool = SqlitePool::connect(db_url)
+    let db_port =
+        &env::var("DATABASE_PORT").inspect_err(|_e| println!("failed to load database port"))?;
+
+    let db_port: u16 = db_port
+        .parse()
+        .inspect_err(|_e| println!("failed to parse database port"))?;
+
+    let pg_options = PgConnectOptions::new()
+        .host(
+            &env::var("DATABASE_HOST")
+                .inspect_err(|_e| println!("failed to load database host"))?,
+        )
+        .port(db_port)
+        .database(
+            &env::var("DATABASE_NAME")
+                .inspect_err(|_e| println!("failed to load database name"))?,
+        )
+        .username(
+            &env::var("DATABASE_USERNAME")
+                .inspect_err(|_e| println!("failed to load database user"))?,
+        )
+        .password(
+            &env::var("DATABASE_PASSWORD")
+                .inspect_err(|_e| println!("failed to load database host"))?,
+        );
+
+    let pool = PgPoolOptions::new()
+        .max_connections(1)
+        .connect_with(pg_options)
         .await
-        .inspect_err(|_e| println!("failed to load db url"))?;
+        .inspect_err(|e| println!("Failed to create connection pool -- {}", e.to_string()))?;
 
     println!("Setting up poise");
     let opts = poise::FrameworkOptions {
@@ -73,7 +102,7 @@ async fn main() -> Result<(), BoxErr> {
         .build();
 
     let discord_token =
-        env::var("DISCORD_TOKEN").inspect_err(|_e| println!("failed to load db url"))?;
+        env::var("DISCORD_TOKEN").inspect_err(|_e| println!("failed to load discord token"))?;
 
     let discord_client = async {
         println!("Starting Discord client...");
@@ -155,14 +184,14 @@ pub async fn handle_civ_webhook(
 ) -> Response<Body> {
     let pool = state.pool;
     let player_name = &payload.player_name.to_lowercase();
-    let discord_tag = sqlx::query_scalar!(
+    let discord_tag: Result<Option<String>, sqlx::Error> = sqlx::query_scalar(
         r#"
         SELECT discord_id
         FROM civ_discord_user_map
-        where civ_user_name = ?1
+        where civ_user_name = $1
     "#,
-        player_name,
     )
+    .bind(&player_name)
     .fetch_one(&pool)
     .await;
 

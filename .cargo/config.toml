@@ -1,0 +1,3 @@
+[alias]
+"db:apply" = ["sqlx", "migrate", "run"]
+"db:info" = ["sqlx", "migrate", "info"]
