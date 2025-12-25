@@ -1,0 +1,11 @@
+@host = http://localhost:3000
+
+# @name cloudflare_iv_pbc_webhook
+POST {{host}}/webhooks
+Content-Type: application/json
+
+{
+    "value1": "beavers",
+    "value2": "ailbe",
+    "value3": "3"
+}
