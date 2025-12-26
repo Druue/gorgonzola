@@ -1,6 +1,6 @@
 mod commands;
 
-use std::{env, error::Error, net::SocketAddr};
+use std::{convert::Infallible, env, error::Error, net::SocketAddr};
 
 use axum::{
     Json,
@@ -8,6 +8,7 @@ use axum::{
     extract::{self, State},
     http::StatusCode,
     response::{IntoResponse, Response},
+    routing::get,
 };
 use poise::serenity_prelude::{ExecuteWebhook, Http, Webhook};
 use serde::Deserialize;
@@ -222,6 +223,13 @@ pub async fn handle_civ_webhook(
 
 pub fn router(state: ServerState) -> axum::Router {
     axum::Router::new()
+        .route(
+            "/",
+            get(async || {
+                let res = Response::new(Body::from("Hi from `GET /`"));
+                Ok::<_, Infallible>(res)
+            }),
+        )
         .route("/webhooks", post(handle_civ_webhook))
         .with_state(state)
 }

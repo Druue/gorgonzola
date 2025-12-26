@@ -1,5 +1,6 @@
 # Note: if running the server through docker, use the port defined there instead
 @host = http://localhost:3000
+# @host = https://gorgonzola-production.up.railway.app
 
 # @name cloudflare_iv_pbc_webhook
 POST {{host}}/webhooks
@@ -10,3 +11,8 @@ Content-Type: application/json
     "value2": "ailbe",
     "value3": "3"
 }
+
+###
+
+# @name check_root_endpoint
+GET {{host}}/
