@@ -23,12 +23,12 @@ pub async fn register(ctx: Context<'_>, civ_username: String) -> Result<(), BoxE
 
     let result = sqlx::query(
         r#"
-        INSERT INTO user
-                (discord_id)
+        INSERT INTO
+            "user" (discord_id)
             SELECT $1
             WHERE
                 NOT EXISTS (
-                    SELECT * FROM user WHERE discord_id = $1
+                    SELECT 1 FROM "user" WHERE discord_id = $1
                 )"#,
     )
     .bind(&author_id)
@@ -44,11 +44,19 @@ pub async fn register(ctx: Context<'_>, civ_username: String) -> Result<(), BoxE
 
     let result = sqlx::query(
         r#"
-            INSERT INTO civ_discord_user_map ( discord_id, civ_user_name )
-            SELECT ?1, ?2
-            WHERE NOT EXISTS ( SELECT * FROM civ_discord_user_map WHERE discord_id = ?1 AND civ_user_name = ?2 )
-        "#
-    ).bind(&author_id).bind(&civ_username).execute(&mut *tx).await;
+            INSERT INTO
+                civ_discord_user_map ( discord_id, civ_user_name )
+            SELECT $1, $2
+            WHERE NOT EXISTS (
+                    SELECT 1 FROM civ_discord_user_map
+                    WHERE discord_id = $1 AND civ_user_name = $2
+                )
+        "#,
+    )
+    .bind(&author_id)
+    .bind(&civ_username)
+    .execute(&mut *tx)
+    .await;
 
     if let Err(e) = result {
         println!("Failed to insert user mapping");
